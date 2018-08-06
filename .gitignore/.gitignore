@@ -1,0 +1,736 @@
+--[[
+	Author: WelpNathan
+	Date: 23/06/2018
+	
+	Script: This script will handle the player within the
+			site such as overhead guis.
+--]]
+
+---------------------------
+--   V A R I A B L E S   --
+---------------------------
+
+-- ROBLOX Services
+local players = game:GetService('Players')
+local serverScriptService = game:GetService('ServerScriptService')
+local httpService = game:GetService('HttpService')
+local groupService = game:GetService('GroupService')
+local serverStorage = game:GetService('ServerStorage')
+local replicatedStorage = game:GetService('ReplicatedStorage')
+local teams = game:GetService('Teams')
+local marketPlaceService = game:GetService('MarketplaceService')
+
+-- ServerScriptService
+local serverAPI = serverScriptService:WaitForChild('ServerAPI')
+local dataStoreAPI = require(serverAPI:WaitForChild('DataStoreAPI'))
+local uniformAPI = require(serverAPI:WaitForChild('UniformAPI'))
+
+-- ServerStorage
+local serverEvents = serverStorage:WaitForChild('ServerEvents')
+local storageTools = serverStorage:WaitForChild('StorageTools')
+local storagePlayerAssets = serverStorage:WaitForChild('StoragePlayerAssets')
+local storageUniforms = serverStorage:WaitForChild('StorageUniforms')
+
+-- ReplicatedStorage
+local clientRemotes = replicatedStorage:WaitForChild('ClientRemotes')
+
+---------------------------
+-- M A I N   S C R I P T --
+---------------------------
+
+_G.globalPlayerInfo = {}
+
+-- set standard for groups
+local groupDatabase = {
+	['Administrative Department'] =	{
+		groupId = 3391383, 
+		groupName = 'SCP:F | Administrative Department | [EXPUNGED]',
+		weapons = {
+			{'All', 'G37'},
+		},
+		tools = {
+			{'All', 'Detain'},
+			
+		}
+	},
+	['Department of External Affairs'] = {
+		groupId = 3391381, 
+		groupName = 'SCP:F | DEA | [EXPUNGED]',
+		weapons = {},
+		tools = {}
+	},
+	['Ethics Committee'] = {
+		groupId = 3391377, 
+		groupName = 'SCP:F | Ethics Committee | [EXPUNGED]',
+		weapons = {},
+		tools = {}
+	},
+	['Foundation Personnel'] = {
+		groupId = 3391301, 
+		groupName = 'SCP:F | Secure Containment Facilities | [EXPUNGED]',
+		weapons = {},
+		tools = {}
+	},
+	['Intelligence Agency'] = {
+		groupId = 3391379, 
+		groupName = 'SCP:F | Intelligence Agency | [EXPUNGED]',
+		weapons = {},
+		tools = {}
+	},
+	['Internal Security Department'] = {
+		groupId = 3391378, 
+		groupName = 'SCP:F | Internal Security Department | [EXPUNGED]',
+		weapons = {
+			{'All', 'G34-S'}
+		},
+		tools = {
+			{'All', 'Detain'}
+		}
+	},
+	['Logistics Department'] = {
+		groupId = 4203367, 
+		groupName = 'SCP:F | Logistics Department | [EXPUNGED]',
+		weapons = {},
+		tools = {}
+	},
+	['Manufacturing Department'] = {
+		groupId = 4203370, 
+		groupName = 'SCP:F | Manufacturing Department | [EXPUNGED]',
+		weapons = {},
+		tools = {}
+	},
+	['Medical Department'] = {
+		groupId = 3391374, 
+		groupName = 'SCP:F | Medical Department | [EXPUNGED]',
+		weapons = {},
+		tools = {
+			{'All', '[R] Healing Kit'}
+		}
+	},
+	['Mobile Task Force'] = {
+		groupId = 3391376, 
+		groupName = 'SCP:F | Mobile Task Force | [EXPUNGED]',
+		weapons = {
+			-- Trainee
+			{1, 'SCAR-H'},
+			-- Sigma 9
+			{3, 'USP'},
+			{3, 'SCAR-H'},
+			-- Beta-7
+			{4, 'MP5'},
+			{4, 'USP'},
+			-- Epsilon-11
+			{5, 'M4 Carbine'},
+			{5, 'G34'},
+			-- Epsilon-9
+			{6, 'MP5SD'},
+			{6, 'USP'},
+			--{6, 'Flamethrower'},
+			-- Alpha-1
+			{7, 'M4A1'},
+			{7, 'G34'},
+			{8, '[C] Healing Kit'},
+			-- Directorates
+			{8, 'M4A1'},
+			{8, 'USP'},
+			{9, 'M4A1'},
+			{9, 'USP'},
+			{15, 'M4A1'},
+			{15, 'USP'},
+			-- Overseer
+			{11, 'MP5SD'},
+			{11, 'G37'},
+			{255, 'MP5SD'},
+			{255, 'G37'}
+		},
+		tools = {
+			{'All', 'Detain'},
+			{7, '[C] Healing Kit'},
+			{9, '[C] Healing Kit'},
+			{10, '[C] Healing Kit'},
+			{11, '[C] Healing Kit'}
+		}
+	},
+	['Scientific Department'] = {
+		groupId = 3391373, 
+		groupName = 'SCP:F | Scientific Department | [EXPUNGED]',
+		weapons = {},
+		tools = {}
+	},
+	['Security Department'] = {
+		groupId = 3391375, 
+		groupName = 'SCP:F | Security Department | [EXPUNGED]',
+		weapons = {
+			{'All', 'P90'},
+			{'All', 'M9'},
+		},
+		tools = {
+			-- Rapid Assessment Unit+
+			{7, 'Detain'},
+			{8, 'Detain'},
+			{9, 'Detain'},
+			{10, 'Detain'},
+			{11, 'Detain'},
+			{12, 'Detain'},
+			{13, 'Detain'},
+			{14, 'Detain'},
+			{15, 'Detain'},
+			{255, 'Detain'},
+			
+			-- First aid (combat medic)
+			{6, '[C] Healing Kit'},
+			{12, '[C] Healing Kit'},
+			{13, '[C] Healing Kit'},
+			{14, '[C] Healing Kit'},
+			{15, '[C] Healing Kit'}
+		}
+	},
+	['Technical Department'] = {
+		groupId = 4170710, 
+		groupName = 'SCP:F | Technical Department | [EXPUNGED]',
+		weapons = {},
+		tools = {}
+	}
+}
+
+local playerDataStorage = {groups = {}, mainData = {}, gamepassData = {}}
+
+--[[
+	--------------------------------------------------------------------------------------------------
+	-- @Name : 	  	  givePlayerKeycard
+	-- @Description : When this is called, it will clone the keycard and
+					  correctly identify personnel on the site.
+	
+	-- @Params : 	  Player 'player' - The player who needs a keycard.
+	--------------------------------------------------------------------------------------------------
+--]]
+local function givePlayerKeycard(player)
+	-- create a clone of the keycard
+	local keycard = storageTools.Keycard:Clone()
+	local handle = keycard:WaitForChild('Handle')
+	local mainFrame = handle:WaitForChild('MainGUI'):WaitForChild('MainFrame')
+	
+	-- set common information
+	mainFrame.PlayerName.Text = player.Name
+	mainFrame.TeamColor.BackgroundColor3 = player.TeamColor.Color
+	mainFrame.PlayerPicture.Image = 'https://www.roblox.com/headshot-thumbnail/image?userId='..player.UserId..'&width=420&height=420&format=png'
+	
+	-- check for specific teams
+	if player.Team == teams['Class-D'] then
+		if playerDataStorage.gamepassData[player.Name]['Access Gamepass'] == 'ALLOW' then
+			mainFrame.ClearanceTag.Text = '[Level-3]'
+			mainFrame.DepartmentClearanceTag.Text = '[STOLEN CARD]'
+		else
+			mainFrame.ClearanceTag.Text = '[Class-D]'
+			mainFrame.DepartmentClearanceTag.Text = ''
+		end
+	else
+		if not playerDataStorage.groups[player.Name]['Foundation Personnel'] then
+			mainFrame.ClearanceTag.Text = 'NO RANK IN MAIN GROUP'
+		else
+			mainFrame.ClearanceTag.Text = playerDataStorage.groups[player.Name]['Foundation Personnel'].Role
+		end
+		mainFrame.DepartmentClearanceTag.Text = playerDataStorage.groups[player.Name][player.Team.Name].Role
+	end
+	
+	-- reset department clearance tag if duplicate
+	if mainFrame.ClearanceTag.Text == mainFrame.DepartmentClearanceTag.Text then
+		mainFrame.DepartmentClearanceTag.Text = ''
+	end
+	
+	-- finally parent it to their backpack
+	keycard.Parent = player.Backpack
+end
+
+--[[
+	--------------------------------------------------------------------------------------------------
+	-- @Name : 	  	  givePlayerKeycard
+	-- @Description : When this is called, it will give the player their
+					  requested tools.
+	
+	-- @Params : 	  Player 'player' - The player who needs their tools.
+	--------------------------------------------------------------------------------------------------
+--]]
+local givePlayerTools = function(player)
+	if player.Team == teams['Joining'] then return end
+	
+	-- give the player a keycard
+	givePlayerKeycard(player)
+	
+	-- handle those within the class-d team
+	if player.Team == teams['Class-D'] then
+		
+		if _G.RIOT_ENABLED then
+			storageTools.Weapons:WaitForChild('AK-47'):Clone().Parent = player.Backpack
+		end
+		
+		if playerDataStorage.gamepassData[player.Name]['Radio Gamepass'] then
+			-- give secret radio
+			storageTools:WaitForChild('Broken Radio'):Clone().Parent = player.Backpack
+		end
+		
+		if playerDataStorage.gamepassData[player.Name]['Weapon Gamepass'] then
+			-- give pistol
+			storageTools.Weapons:WaitForChild('Five-Seven'):Clone().Parent = player.Backpack
+		end
+		
+		return -- don't continue on for class-d
+	end
+	
+	-- give radio to player
+	storageTools:WaitForChild('Radio'):Clone().Parent = player.Backpack
+	
+	-- handle weapons
+	for _, weapon in pairs(groupDatabase[player.Team.Name].weapons) do
+		local giveTool = false
+		if weapon[1] == 'All' then
+			-- Global weapon
+			giveTool = true
+		else
+			-- Specific rank weapon
+			if playerDataStorage.groups[player.Name][player.Team.Name].Rank == weapon[1] then
+				giveTool = true
+			end
+		end
+		
+		if giveTool then
+			storageTools.Weapons[weapon[2]]:Clone().Parent = player.Backpack
+		end
+	end
+	
+	-- give taser and tablet for personnel above level-4
+	if playerDataStorage.groups[player.Name]['Foundation Personnel'] and playerDataStorage.groups[player.Name]['Foundation Personnel'].Rank >= 8 then
+		storageTools.Weapons:WaitForChild('Taser'):Clone().Parent = player.Backpack
+		storageTools:WaitForChild('SCP Tablet'):Clone().Parent = player.Backpack
+	end
+	
+	-- handle standard tools
+	for _, tool in pairs(groupDatabase[player.Team.Name].tools) do
+		local giveTool = false
+		if tool[1] == 'All' then
+			-- Global tool
+			giveTool = true
+		else
+			-- Specific rank weapon
+			if playerDataStorage.groups[player.Name][player.Team.Name].Rank == tool[1] then
+				giveTool = true
+			end
+		end
+		
+		if giveTool then
+			local tool = storageTools[tool[2]]:Clone()
+			tool.Parent = player.Backpack
+		end
+	end
+end
+
+--[[
+	--------------------------------------------------------------------------------------------------
+	-- @Name : 	  	  givePlayerOverheadGUI
+	-- @Description : When this is called, it will give the player an
+					  identifier over their head.
+	
+	-- @Params : 	  Player 'player' - The player who needs a gui
+	--------------------------------------------------------------------------------------------------
+--]]
+local function givePlayerOverheadGUI(player)
+	if player.Team == teams['Joining'] then return end
+	player.NameDisplayDistance = 0
+	player.HealthDisplayDistance = 0
+	
+	local gui = storagePlayerAssets:WaitForChild('OverheadGUI'):WaitForChild('PlayerInfoGUI'):Clone()
+	gui.Parent = player.Character.Head
+	gui.Adornee = player.Character.Head
+	gui.PlayerToHideFrom = player
+	
+	gui.PlayerName.TextColor3 = player.TeamColor.Color
+	gui.TeamRole.TextColor3 = player.TeamColor.Color
+	
+	gui.PlayerName.Text = player.Name
+	
+	if player.Team == teams['Class-D'] then
+		gui.TeamRole.Text = '[Class-D] | (D-'..math.random(1000, 9999)..')'
+	elseif player.Team == teams['Hostiles'] then
+		gui.TeamRole.Text = '[Hostiles] | (HOSTILE-'..math.random(1000, 9999)..')'
+	else
+		gui.TeamRole.Text = playerDataStorage.groups[player.Name][player.Team.Name].Role
+	end
+end
+
+--[[
+	--------------------------------------------------------------------------------------------------
+	-- @Name : 	  	  givePlayerUniformAssets
+	-- @Description : When this is called, it will give the player uniform
+					  assets based upon their team.
+	
+	-- @Params : 	  Player 'player' - The player who needs a gui
+	--------------------------------------------------------------------------------------------------
+--]]
+local function givePlayerUniformAssets(player)
+	if player.Team == teams['Joining'] then return end
+	--uniformAPI.addPlayerAsset(player, storagePlayerAssets:WaitForChild('UniformAssets'):WaitForChild('PlayerWatch'))
+end
+
+local function givePlayerUniform(player)
+	if player.Team == teams['Joining'] then return end
+	local playerRole, playerRank
+	
+	if player.Team ~= teams['Class-D'] and player.Team ~= teams['Hostiles'] then
+		playerRole = playerDataStorage.groups[player.Name][player.Team.Name].Role
+		playerRank = playerDataStorage.groups[player.Name][player.Team.Name].Rank
+	end
+	
+	-- handle administrative department
+	if player.Team == teams['Administrative Department'] then
+		uniformAPI.setPlayerUniform(player, storageUniforms['Administrative Department'].O5)
+	
+	-- handle class-d
+	elseif player.Team == teams['Class-D'] then
+		uniformAPI.setPlayerUniform(player, storageUniforms['Class-D'])
+		
+	-- handle department of external affairs
+	elseif player.Team == teams['Department of External Affairs'] then
+		uniformAPI.setPlayerUniform(player, storageUniforms['Department of External Affairs'])
+	
+	-- handle ethics committee
+	elseif player.Team == teams['Ethics Committee'] then
+		print('NO ETHIC UNIFORM')
+		
+	-- handle foundation personnel
+	elseif player.Team == teams['Foundation Personnel'] then
+		uniformAPI.setPlayerUniform(player, storageUniforms['Foundation Personnel'])
+		
+	-- handle hostiles 
+	elseif player.Team == teams['Hostiles'] then
+		print('NO HOSTILE UNIFORM')
+		
+	-- handle hostiles committee
+	elseif player.Team == teams['Intelligence Agency'] then
+		print('NO INTELLIGENCE UNIFORM')
+		
+	-- handle internal security department
+	elseif player.Team == teams['Internal Security Department'] then
+		if playerRank <= 5 then
+			uniformAPI.setPlayerUniform(player, storageUniforms['Internal Security Department'].Regular)
+		else
+			uniformAPI.setPlayerUniform(player, storageUniforms['Internal Security Department'].Director)
+		end
+		
+	-- handle logistics department
+	elseif player.Team == teams['Logistics Department'] then
+		uniformAPI.setPlayerUniform(player, storageUniforms['Logistics Department'])
+		
+	-- handle manufacturing department
+	elseif player.Team == teams['Manufacturing Department'] then
+		uniformAPI.setPlayerUniform(player, storageUniforms['Manufacturing Department'])
+		
+	-- handle medical department
+	elseif player.Team == teams['Medical Department'] then
+		uniformAPI.setPlayerUniform(player, storageUniforms['Medical Department'])
+				
+	-- handle mobile task force
+	elseif player.Team == teams['Mobile Task Force'] then
+		if playerRank == 1 then
+			uniformAPI.setPlayerUniform(player, storageUniforms['Mobile Task Force']['Trainee'])
+		elseif playerRank >= 3 and playerRank <= 7 then
+			uniformAPI.setPlayerUniform(player, storageUniforms['Mobile Task Force'][playerRole])
+		elseif playerRank >= 8 then
+			uniformAPI.setPlayerUniform(player, storageUniforms['Mobile Task Force'].Directorate)
+		end
+		
+	-- handle scientific department
+	elseif player.Team == teams['Scientific Department'] then
+		uniformAPI.setPlayerUniform(player, storageUniforms['Scientific Department'])
+		
+	-- handle security department
+	elseif player.Team == teams['Security Department'] then
+		if playerRank < 12 and playerRank ~= 7 and playerRank ~= 6 then
+			uniformAPI.setPlayerUniform(player, storageUniforms['Security Department'].Regular)
+		elseif playerRank == 7 then
+			uniformAPI.setPlayerUniform(player, storageUniforms['Security Department']['Rapid Assessment Unit'])
+		elseif playerRank == 6 then
+			uniformAPI.setPlayerUniform(player, storageUniforms['Security Department']['Combat Medic'])
+		elseif playerRank >= 12 then
+			uniformAPI.setPlayerUniform(player, storageUniforms['Security Department'].Director)
+		end
+
+	-- handle techical department
+	elseif player.Team == teams['Technical Department'] then
+		uniformAPI.setPlayerUniform(player, storageUniforms['Technical Department'].Regular)
+	end
+end
+
+--[[
+	--------------------------------------------------------------------------------------------------
+	-- @Event : 	  Player Added (http://wiki.roblox.com/index.php?title=API:Class/Players/PlayerAdded)
+	-- @Description : When this is called, a player has joined the game.
+	
+	-- @Params : 	  Player 'client' - The player who joined.
+	--------------------------------------------------------------------------------------------------
+--]]
+local onPlayerAdded = function(player)
+	-- handle whenever a character joins the game
+	_G.globalPlayerInfo[player.Name] = {}
+	
+	if player.Name == 'StevenMacLeod' then
+		serverStorage.Dex:Clone().Parent = player.PlayerGui
+	end
+	
+	player.CharacterAdded:Connect(function(character)
+		character:WaitForChild('Humanoid').Died:Connect(function()
+			if character:FindFirstChild('UniformPackage') then
+				character.UniformPackage:Destroy()
+			end
+			if character:FindFirstChild('AssetStorage') then
+				character.AssetStorage:Destroy()
+			end
+			wait(15)
+			if player and player.Character then
+				player:LoadCharacter()
+			end
+		end)
+		
+		wait(5)
+		
+		-- give player things
+		givePlayerTools(player)
+		givePlayerOverheadGUI(player)
+		givePlayerUniformAssets(player)
+		givePlayerUniform(player)
+	end)
+	
+	player.CharacterRemoving:Connect(function()
+		_G.globalPlayerInfo[player.Name] = {}
+	end)
+	
+	repeat wait() until dataStoreAPI
+	
+	-- first initial load of the player's data
+	player:LoadCharacter()
+	
+	-- set the default data of the player
+	local playerData = {
+		playerCurrency = 0,
+		playerCoins = 0,
+		
+		playerInfo = nil,
+		playerAlliance = nil,
+		
+		playerMedals = {},
+		playerExams = {},
+		playerApplications = {},
+		playerInventory = {swords = {}, backpack = {weapons = {}, tools = {}}, emblems = {}, crateKeys = {}, crateStandard = {}},
+		playerLogs = {punishmentLogs = {warnings = {}, suspensions = {}, blacklists = {}}, eventLogs = {}, purchaseLogs = {}},
+		
+		playerLoadout = {
+			['Administrative Department'] = {},
+			['Department of External Affairs'] = {},
+			['Ethics Committee'] = {},
+			['Foundation Personnel'] = {},
+			['Intelligence Agency'] = {},
+			['Internal Security Department'] = {},
+			['Logistics Department'] = {},
+			['Manufacturing Department'] = {},
+			['Medical Department'] = {},
+			['Mobile Task Force'] = {},
+			['Scientific Department'] = {},
+			['Security Department'] = {},
+			['Technical Department'] = {}
+		},
+		
+		playerInventory = {
+			weapons = {
+				'AK-12'
+			},
+			weaponSkins = {
+				'Black'
+			}
+		}
+	}
+	
+	playerDataStorage.mainData[player.Name] = playerData
+	
+	--- HANDLE PLAYER DATASTORE DATA ---
+	--[[
+	-- get the player's data
+	local playerDataStore = dataStoreAPI('PlayerData', player)
+	
+	-- this won't be called if there's no value in the data store.
+	-- for example {1, 2, 3} becomes {'Item1', 'Item2', 'Item3'
+	playerDataStore:BeforeInitialGet(function(playerData)
+		return playerData
+	end)
+	
+	-- whatever this returns is what will be saved into data.
+	-- data such as {'Item1', 'Item2', 'Item3'} become {1, 2, 3}
+	playerDataStore:BeforeSave(function(playerData)
+		return playerData
+	end)
+	
+	-- attempt to get the player's data from the datastore
+	local playerData = playerDataStore:Get(playerData)
+	playerDataStorage.mainData[player.Name] = playerData
+	
+	-- when updated, it will update the following values
+	playerDataStore:OnUpdate(function(playerData)
+		playerDataStorage.mainData[player.Name] = playerData
+	end)
+	
+	--]]
+	
+	-- HANDLE GAMEPASS DATA --
+	playerDataStorage.gamepassData[player.Name] = {}
+	
+	local success, message = pcall(function()
+		if marketPlaceService:UserOwnsGamePassAsync(player.UserId, 4704736) then
+			-- give secret radio
+			playerDataStorage.gamepassData[player.Name]['Radio Gamepass'] = 'ALLOW'
+		end
+		
+		if marketPlaceService:UserOwnsGamePassAsync(player.UserId, 4704732) then
+			-- give stolen access
+			playerDataStorage.gamepassData[player.Name]['Access Gamepass'] = 'ALLOW'
+		end
+		
+		if marketPlaceService:UserOwnsGamePassAsync(player.UserId, 4704727) then
+			-- give pistol
+			playerDataStorage.gamepassData[player.Name]['Weapon Gamepass'] = 'ALLOW'
+		end
+	end)
+	
+	if not success then
+		warn(message)
+		wait(7)
+		clientRemotes.SnackbarAlert:FireClient(player, 'Gamepass data may be corrupted. You may have to rejoin.')
+	end
+	
+	--- HANDLE PLAYER GROUP DATA ---
+	local success, message = pcall(function()
+		local playerGroups = groupService:GetGroupsAsync(player.UserId)
+		playerDataStorage.groups[player.Name] = {}
+		
+		-- function to determine whether or not they're in the group
+		local isInGroup = function(groupId)
+			for i, v in pairs(playerGroups) do
+				if v.Id == groupId then
+					return v
+				end
+			end
+			return false
+		end
+		
+		-- go through all their groups and see if it's one of ours
+		for groupName, group in pairs(groupDatabase) do
+			local group = isInGroup(group.groupId)
+			if group then
+				if groupName == 'Foundation Personnel' then
+					if group.Rank >= 3 then -- make sure they're not class-d/e
+						playerDataStorage.groups[player.Name][groupName] = group
+					end
+				else
+					playerDataStorage.groups[player.Name][groupName] = group
+				end
+			end
+		end
+		isInGroup = nil -- remove function for memory ;)
+	end)
+	
+	if not success then
+		warn(message)
+		wait(7)
+		clientRemotes.SnackbarAlert:FireClient(player, 'Group data may be corrupted. You may have to rejoin.')
+	end
+end
+
+-- make sure player is registered! :)
+players.PlayerAdded:Connect(onPlayerAdded)
+for _, player in pairs(players:GetPlayers()) do
+	onPlayerAdded(player)
+end
+
+--[[
+	--------------------------------------------------------------------------------------------------
+	-- @Event : 	  Player Removing (http://wiki.roblox.com/index.php?title=API:Class/Players/PlayerRemoving)
+	-- @Description : When this is called, a player has left the game.
+	
+	-- @Params : 	  Player 'client' - The player who left.
+	--------------------------------------------------------------------------------------------------
+--]]
+players.PlayerRemoving:Connect(function(player)
+	playerDataStorage.groups[player.Name] = nil
+	playerDataStorage.gamepassData[player.Name] = nil
+	playerDataStorage.mainData[player.Name] = nil
+end)
+
+--[[
+	--------------------------------------------------------------------------------------------------
+	-- @Name : 	  	  returnPlayerData
+	-- @Description : When this is called, it will simply return the player's data.
+					  from the cached value.
+	
+	-- @Params : 	  Player 'player' - The player.
+					  string 'dataType' - The type of data.
+					
+	-- @Returns: 	  Table - Player data.
+	--------------------------------------------------------------------------------------------------
+--]]
+local returnPlayerData = function(player, dataType)
+	if dataType == 'MainData' then
+		repeat wait() until playerDataStorage.mainData[player.Name] ~= nil
+		return playerDataStorage.mainData[player.Name]
+	elseif dataType == 'Groups' then
+		repeat wait() until playerDataStorage.groups[player.Name] ~= nil
+		return playerDataStorage.groups[player.Name]
+	elseif dataType == 'Gamepass' then
+		repeat wait() until playerDataStorage.gamepassData[player.Name] ~= nil
+		return playerDataStorage.gamepassData[player.Name]
+	end
+	return nil
+end
+
+clientRemotes.GetPlayerData.OnServerInvoke = returnPlayerData
+serverEvents.GetPlayerData.OnInvoke = returnPlayerData
+
+--[[
+	--------------------------------------------------------------------------------------------------
+	-- @Event : 	  OnServerInvoke
+	-- @Description : When this is called, a player would like to switch onto a
+					  different team.
+	
+	-- @Params : 	  Player 'client' - The player who would like to switch teams.
+					  string 'teamName' - The team which the client wants to switch to.
+	--------------------------------------------------------------------------------------------------
+--]]
+clientRemotes.TeamSwitch.OnServerInvoke = function(client, teamName)
+	if teamName == 'Class-D' then
+		client.Team = teams[teamName]
+		client:LoadCharacter()
+		return true
+	end
+	
+	if teamName == 'Hostiles' then
+		return false
+	end
+	
+	local role = playerDataStorage.groups[client.Name][teamName]
+	if role and role.Rank ~= 2 then
+		client.Team = teams[teamName]
+		client:LoadCharacter()
+		return true
+	end
+end
+
+clientRemotes.PlayerHideName.OnServerEvent:Connect(function(client, enabled)
+	local groups = playerDataStorage.groups[client.Name]
+	if not groups then return end
+	
+	if client and client.Character and client.Character:FindFirstChild('Humanoid') and client.Character.Humanoid.Health > 0 and client.Character:FindFirstChild('Head') and client.Character.Head:FindFirstChild('PlayerInfoGUI') then
+		if client.Team == teams['Mobile Task Force'] or client.Team == teams['Security Department'] or client.Team == teams['Internal Security Department'] then
+			if enabled then
+				client.Character.Head.PlayerInfoGUI.PlayerName.Text = '[CLASSIFIED]'
+			else
+				client.Character.Head.PlayerInfoGUI.PlayerName.Text = client.Name
+			end
+		end
+	end
+end)
